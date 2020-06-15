@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8" />
+  <title>Data Visualization Project 1</title>
+  <style>
+    :root {
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    #tooltip {
+      border-radius: 8px;
+      box-shadow: 4px 4px 5px rgba(0, 0, 0, 0.25);
+      padding: 1em;
+      background-color: white;
+      position: relative;
+      width: 150px;
+      height: 2em;
+      transform: translateX(60px);
+    }
+
+    #title {
+      font-size: xx-large;
+      text-decoration: underline;
+    }
+
+    #chart-container {
+      max-width: min-content;
+      margin: 50px;
+      padding: 20px;
+      background-color: #eeeeee;
+      border-radius: 20px;
+      box-shadow: 4px 4px 5px rgba(0, 0, 0, 0.25);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+  </style>
+  <script src="https://d3js.org/d3.v5.min.js"></script>
+</head>
+
+<body>
+  <div id="chart-container">
+    <div id="title"><em>United States GDP</em></div>
+    <div id="barChart">
+      <div id="tooltip"></div>
+    </div>
+  </div>
+  <script src="https://cdn.freecodecamp.org/testable-projects-fcc/v1/bundle.js"></script>
+  <script>
+    let margin = { top: 30, right: 30, bottom: 30, left: 60 },
+      width = 800 - margin.left - margin.right,
+      height = 400 - margin.top - margin.bottom;
+
+    let toolTip = d3.select("#tooltip").style("opacity", 0);
+
+    d3.json("https://raw.githubusercontent.com/freeCodeCamp/ProjectReferenceData/master/GDP-data.json").then(function (reqObject) {
+      let barWidth = width / reqObject.data.length;
+      let adjustedData = reqObject.data.map(item => {
+        let quarter = getQuarter(item);
+
+        return `<strong>${item[0].slice(0, 4)} ${quarter}</strong></br>\$${item[1]} Billion`;
+      });
+
+      console.log(adjustedData);
+
+      let svg = d3.select("#barChart")
+        .append("svg")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height + margin.top + margin.bottom)
+        .append("g")
+        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+      /* X-Axis Scaling */
+      let xScale = d3
+        .scaleTime()
+        .domain(
+          d3.extent(reqObject.data, function (d) {
+            return new Date(d[0]);
+          })
+        )
+        .range([0, width]);
+
+      svg.append("g")
+        .attr("id", "x-axis")
+        .attr("transform", "translate(0," + height + ")")
+        .call(d3.axisBottom(xScale));
+
+      /* Y-Axis Scaling */
+      let yScale = d3
+        .scaleLinear()
+        .domain([
+          0,
+          d3.max(reqObject.data, function (d) {
+            return d[1];
+          }),
+        ])
+        .range([height, 0]);
+
+      svg.append("g")
+        .attr("id", "y-axis")
+        .call(d3.axisLeft(yScale));
+
+      /* Add rect elements for data points */
+      svg.selectAll("rect")
+        .data(reqObject.data)
+        .enter()
+        .append("rect")
+        .attr("class", "bar")
+        .attr("width", barWidth)
+        .attr("height", (d, i) => { return height - yScale(reqObject.data[i][1]) })
+        .attr("fill", "coral")
+        .attr("data-date", (d, i) => { return reqObject.data[i][0] })
+        .attr("data-gdp", (d, i) => { return reqObject.data[i][1] })
+        .attr("transform", (d, i) => { return "translate(" + i * barWidth + ", " + (yScale(reqObject.data[i][1])) + ")"; })
+        .on("mouseover", function (d, i) {
+          toolTip.transition().duration(150).style("opacity", 0.9);
+          toolTip.html(adjustedData[i])
+            .attr("data-date", reqObject.data[i][0])
+            .style("left", (i * barWidth) + 30 + "px")
+            .style("top", (height) + "px");
+        })
+        .on("mouseout", function (d) {
+          toolTip.transition().duration(500).style("opacity", 0);
+        });
+
+      svg
+        .append("rect")
+        .attr("x", -1 * width)
+        .attr("y", -1 * height)
+        .attr("height", height)
+        .attr("width", width - 1)
+        .attr("class", "curtain")
+        .attr("transform", "rotate(180)")
+        .style("fill", "#eeeeee");
+
+      /* Animate curtain to reveal graph */
+      svg.select("rect.curtain").transition().delay(500).duration(2000).attr("width", 0).ease(d3.easCubicOut);
+    });
+
+    const getQuarter = (item) => {
+      let quarter = "";
+      switch (item[0].slice(5, 7)) {
+        case "01":
+          quarter = "Q1";
+          break;
+        case "04":
+          quarter = "Q2";
+          break;
+        case "07":
+          quarter = "Q3";
+          break;
+        case "10":
+          quarter = "Q4";
+          break;
+      }
+      return quarter;
+    }
+  </script>
+</body>
+
+</html>
